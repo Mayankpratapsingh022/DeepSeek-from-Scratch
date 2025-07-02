@@ -1,13 +1,31 @@
-# Multi-Head Latent Attention (MLA) - From Scratch in PyTorch
+# Deep Seek - From Scratch in PyTorch
 
-This repository contains a minimal and fully functional implementation of **Multi-Head Latent Attention (MLA)**, a memory-efficient variant of Multi-Head Attention used in models like DeepSeek-V2/V3. MLA is designed for faster inference and significantly reduced memory usage during autoregressive generation.
+This repository contains an ongoing,and fully functional implementation of DeepSeek from scratch.
+Currently, it focuses on building core components such as Multi-Head Latent Attention (MLA) — a memory-efficient alternative to standard Multi-Head Attention, used in models like DeepSeek-V2/V3.
+MLA is designed to accelerate inference and reduce memory usage significantly during autoregressive generation.
 
 ![Multi-Head-Latent-Attention](https://github.com/user-attachments/assets/564a2bf0-ab76-4a50-ae91-2f3eadef337d)
 
 
+![Mixture of Experts](https://github.com/user-attachments/assets/d7a4196d-753f-4aa5-9534-067c2a84c0ae)
+
+
+
+![Multi Token prediction](https://github.com/user-attachments/assets/52051bc1-641e-44f4-af4e-63f64f133a64)
+
 ## Overview
 
 Multi-Head Latent Attention (MLA) improves over standard Multi-Head Attention (MHA) by introducing a shared **latent representation** for Key and Value projections. Instead of storing separate key and value tensors for each head, MLA caches a compressed latent vector that is later projected to keys and values — reducing the Key-Value (KV) cache size while preserving per-head expressiveness.
+
+Mixture of Experts (MoE)
+MoE introduces sparsely activated expert layers that allow the model to scale its capacity without increasing compute for every token.
+During training and inference, only a subset of expert networks are activated per input, enabling better specialization and efficiency.
+
+Multi-Token Prediction
+Instead of predicting one token at a time, this approach allows the model to generate multiple tokens in parallel.
+It reduces the number of autoregressive steps and speeds up inference — a critical advantage in deployment settings.
+
+
 
 ### Key Features
 
