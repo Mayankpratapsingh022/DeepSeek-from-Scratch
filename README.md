@@ -1,6 +1,6 @@
 # Deep Seek - From Scratch in PyTorch
 
-This repository contains an ongoing,and fully functional implementation of DeepSeek from scratch.
+This repository contains an ongoing implementation of DeepSeek from scratch.
 Currently, it focuses on building core components such as Multi-Head Latent Attention (MLA) — a memory-efficient alternative to standard Multi-Head Attention, used in models like DeepSeek-V2/V3.
 MLA is designed to accelerate inference and reduce memory usage significantly during autoregressive generation.
 
