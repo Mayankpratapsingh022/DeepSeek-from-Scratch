@@ -84,3 +84,73 @@ output, new_cache = model(x, kv_cache=cache, past_length=past_len)
 | MHA       | High (K+V per head) | ✓                   | High        |
 | MQA / GQA | Low                 | ✗ (shared heads)    | Lower       |
 | **MLA**   | **Low (latent)**    | ✓                   | **High**    |
+
+# DeepSeek-V3 Implementation
+
+A clean implementation of DeepSeek-V3 with Multi-Head Latent Attention, Mixture of Experts, and Multi-Token Prediction.
+
+## Quick Start
+
+### 1. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Prepare Dataset
+```bash
+python prepare_data.py
+```
+This downloads TinyStories dataset and creates `train.bin` and `validation.bin` files.
+
+### 3. Train Model
+```bash
+python main.py train
+```
+This trains the model and saves `best_deepseek_v3.pt`.
+
+### 4. Generate Text
+```bash
+python run_inference.py
+```
+Edit prompts in `run_inference.py` to generate different text.
+
+## Project Structure
+
+```
+DeepSeek-from-Scratch/
+├── models/           # Model architecture
+├── training/         # Training utilities  
+├── inference/        # Text generation
+├── main.py          # Main entry point
+├── run_inference.py # Simple inference script
+├── prepare_data.py  # Dataset preparation
+└── requirements.txt # Dependencies
+```
+
+## Usage Examples
+
+### Custom Text Generation
+Edit `run_inference.py`:
+```python
+my_prompts = [
+    "Your custom prompt here",
+    "Once upon a time",
+    "The future of AI is"
+]
+```
+
+### Training with Different Config
+Edit `training/trainer.py` to change model size, learning rate, etc.
+
+## Model Features
+
+- **Multi-Head Latent Attention**: 87.5% memory reduction
+- **Mixture of Experts**: Auxiliary-loss-free load balancing  
+- **Multi-Token Prediction**: Enhanced training
+
+## Files Explained
+
+- `prepare_data.py`: Downloads and tokenizes dataset
+- `train.bin`, `validation.bin`: Tokenized training data
+- `best_deepseek_v3.pt`: Trained model weights
+- `run_inference.py`: Simple text generation script
