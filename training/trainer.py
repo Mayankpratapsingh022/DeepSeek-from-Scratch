@@ -23,10 +23,10 @@ def train_model():
 
     # Training parameters
     learning_rate = 3e-4
-    max_iters = 80000
-    warmup_steps = 8000
+    max_iters = 20000
+    warmup_steps = 2000
     min_lr = 1e-5
-    eval_iters = 2000
+    eval_iters = 1000
     batch_size = 28
     gradient_accumulation_steps = 4
 
