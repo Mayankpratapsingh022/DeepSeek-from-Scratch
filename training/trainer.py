@@ -9,26 +9,26 @@ def train_model():
     # Configuration
     config = DeepSeekConfig(
         vocab_size=50257,
-        block_size=128,
-        n_layer=4,
-        n_head=4,
-        n_embd=256,
-        kv_lora_rank=64,
-        q_lora_rank=96,
-        n_experts=4,
+        block_size=1024,
+        n_layer=8,
+        n_head=8,
+        n_embd=512,
+        kv_lora_rank=128,
+        q_lora_rank=192,
+        n_experts=8,
         n_experts_per_token=2,
         mtp_num_heads=1,
         dropout=0.1
     )
 
     # Training parameters
-    learning_rate = 1e-4
-    max_iters = 10000
-    warmup_steps = 200
-    min_lr = 5e-5
-    eval_iters = 500
-    batch_size = 16
-    gradient_accumulation_steps = 8
+    learning_rate = 3e-4
+    max_iters = 80000
+    warmup_steps = 8000
+    min_lr = 1e-5
+    eval_iters = 2000
+    batch_size = 28
+    gradient_accumulation_steps = 4
 
     # Device setup
     device = "cuda" if torch.cuda.is_available() else "cpu"

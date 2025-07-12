@@ -7,6 +7,7 @@ Key improvements:
 - Direct file writing
 - Memory-efficient shuffling
 - Progress tracking
+- Optional quality filtering
 """
 
 import os
@@ -27,7 +28,7 @@ import mmap
 
 # Main Dataset Processing Options
 TRAIN_ON_CUSTOM_ROWS = True      
-CUSTOM_ROW_COUNT = 5000000       
+CUSTOM_ROW_COUNT = 800000 
 
 # Dataset Configuration
 DATASET_OPTIONS = [
@@ -35,14 +36,15 @@ DATASET_OPTIONS = [
 ]
 
 # Processing Parameters
-CONTEXT_LENGTH = 1024        
-MIN_TEXT_LENGTH = 50         # Reduced for large datasets
-TRAIN_SPLIT = 0.9           
+CONTEXT_LENGTH = 1024       
+MIN_TEXT_LENGTH = 50         # Only used when USE_QUALITY_FILTERING = True
+TRAIN_SPLIT = 0.95           
 RANDOM_SEED = 42            
+USE_QUALITY_FILTERING = False  # Set to False to process ALL rows, True to use filtering
 
 # Memory Management
-BATCH_SIZE = 1000           # Process in smaller batches
-BUFFER_SIZE = 10000         # Tokens to buffer before writing
+BATCH_SIZE = 8000           # Process in smaller batches
+BUFFER_SIZE = 75000         # Tokens to buffer before writing
 TEMP_DIR = "temp_tokens"    # Directory for temporary files
 
 # File Output Configuration
@@ -160,11 +162,16 @@ class StreamingDataProcessor:
     
     def is_quality_text(self, text):
         """Apply quality filters to determine if text should be included."""
+        if not USE_QUALITY_FILTERING:
+            return True  # Accept all texts when filtering is disabled
+        
+        # Apply quality filters only when enabled
         return len(text.strip()) > MIN_TEXT_LENGTH
     
     def process_dataset_streaming(self, dataset):
         """Process dataset in streaming fashion with memory-efficient approach."""
         logger.info(f"Processing {CUSTOM_ROW_COUNT:,} rows with streaming approach")
+        logger.info(f"Quality filtering: {'ENABLED' if USE_QUALITY_FILTERING else 'DISABLED'}")
         
         # Create temporary directory
         self.tokenizer_processor.create_temp_dir()
@@ -175,6 +182,7 @@ class StreamingDataProcessor:
         
         current_batch = []
         processed_count = 0
+        accepted_count = 0
         train_count = 0
         val_count = 0
         batch_id = 0
@@ -183,7 +191,7 @@ class StreamingDataProcessor:
         
         try:
             for example in dataset:
-                if processed_count >= CUSTOM_ROW_COUNT:
+                if accepted_count >= CUSTOM_ROW_COUNT:
                     break
                 
                 text = example.get('text', '')
@@ -191,6 +199,7 @@ class StreamingDataProcessor:
                     continue
                 
                 cleaned_text = self.clean_text(text)
+                processed_count += 1
                 
                 if self.is_quality_text(cleaned_text):
                     # Determine if this sample goes to train or validation
@@ -201,7 +210,7 @@ class StreamingDataProcessor:
                         current_batch.append(('val', cleaned_text))
                         val_count += 1
                     
-                    processed_count += 1
+                    accepted_count += 1
                     progress_bar.update(1)
                     
                     # Process batch when it reaches target size
@@ -215,7 +224,9 @@ class StreamingDataProcessor:
                         progress_bar.set_postfix({
                             'train': train_count,
                             'val': val_count,
-                            'batches': batch_id
+                            'batches': batch_id,
+                            'processed': processed_count,
+                            'accepted': accepted_count
                         })
         
         except Exception as e:
@@ -228,7 +239,8 @@ class StreamingDataProcessor:
             self._process_current_batch(current_batch, batch_id, 
                                       train_temp_files, val_temp_files)
         
-        logger.info(f"Processed {processed_count:,} samples")
+        logger.info(f"Processed {processed_count:,} total samples")
+        logger.info(f"Accepted {accepted_count:,} samples")
         logger.info(f"Training samples: {train_count:,}, Validation samples: {val_count:,}")
         
         return train_temp_files, val_temp_files
@@ -321,6 +333,7 @@ def main():
     logger.info("Starting memory-efficient FineWeb-edu dataset preparation")
     logger.info(f"Configuration: {CUSTOM_ROW_COUNT:,} rows, context length {CONTEXT_LENGTH}")
     logger.info(f"Batch size: {BATCH_SIZE}, Buffer size: {BUFFER_SIZE}")
+    logger.info(f"Quality filtering: {'ENABLED' if USE_QUALITY_FILTERING else 'DISABLED'}")
     
     # Set random seed
     random.seed(RANDOM_SEED)

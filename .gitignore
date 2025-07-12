@@ -6,6 +6,9 @@ validation.bin
 input_output_pairs.csv
 training_samples.csv
 
+myenv/
+
+
 # Model weights (large files)
 best_deepseek_v3.pt
 *.pt
