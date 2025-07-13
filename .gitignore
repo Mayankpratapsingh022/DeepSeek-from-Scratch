@@ -14,6 +14,18 @@ best_deepseek_v3.pt
 *.pt
 *.pth
 
+# Weights & Biases
+wandb/
+*.wandb
+wandb-metadata.json
+wandb-summary.json
+
+# Common ML artifacts
+
+checkpoints/
+logs/
+outputs/
+
 
 
 # Python cache
