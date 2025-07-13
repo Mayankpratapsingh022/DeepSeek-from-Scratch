@@ -1,156 +1,270 @@
-# Deep Seek - From Scratch in PyTorch
+# DeepSeek V3 from Scratch
 
-This repository contains an ongoing implementation of DeepSeek from scratch.
-Currently, it focuses on building core components such as Multi-Head Latent Attention (MLA) — a memory-efficient alternative to standard Multi-Head Attention, used in models like DeepSeek-V2/V3.
-MLA is designed to accelerate inference and reduce memory usage significantly during autoregressive generation.
+A complete implementation of the DeepSeek V3 architecture with modern transformer innovations including Multi-Head Latent Attention (MLA), Mixture of Experts (MoE), and Multi-Token Prediction (MTP). This project demonstrates the implementation of a 100+ million parameter language model trained on the FineWeb-Edu dataset.
 
-![Multi-Head-Latent-Attention](https://github.com/user-attachments/assets/564a2bf0-ab76-4a50-ae91-2f3eadef337d)
+## Architecture Overview
 
 
-![Mixture of Experts](https://github.com/user-attachments/assets/d7a4196d-753f-4aa5-9534-067c2a84c0ae)
+![DeepSeek architecture](https://github.com/user-attachments/assets/8751e031-61e8-4ef2-9823-5e4316bd6356)
 
+DeepSeek V3 introduces several key architectural improvements over traditional transformer models:
 
+### Core Innovations
 
-![Multi Token prediction](https://github.com/user-attachments/assets/52051bc1-641e-44f4-af4e-63f64f133a64)
-
-## Overview
-
-Multi-Head Latent Attention (MLA) improves over standard Multi-Head Attention (MHA) by introducing a shared **latent representation** for Key and Value projections. Instead of storing separate key and value tensors for each head, MLA caches a compressed latent vector that is later projected to keys and values — reducing the Key-Value (KV) cache size while preserving per-head expressiveness.
-
-Mixture of Experts (MoE)
-MoE introduces sparsely activated expert layers that allow the model to scale its capacity without increasing compute for every token.
-During training and inference, only a subset of expert networks are activated per input, enabling better specialization and efficiency.
-
-Multi-Token Prediction
-Instead of predicting one token at a time, this approach allows the model to generate multiple tokens in parallel.
-It reduces the number of autoregressive steps and speeds up inference — a critical advantage in deployment settings.
+**Multi-Head Latent Attention (MLA)**
+ ![Multi-Head-Latent-Attention](https://github.com/user-attachments/assets/564a2bf0-ab76-4a50-ae91-2f3eadef337d)
+- Compresses key-value pairs into shared latent representations
+- Dramatically reduces memory usage compared to traditional multi-head attention
+- Maintains the expressiveness of multiple attention heads while using significantly less memory
+- Critical for handling longer sequences efficiently
 
 
 
-### Key Features
 
-- Implements the core logic of MLA from scratch in PyTorch.
-- Includes matrix absorption trick: `W_q @ W_uk.T` to reduce redundant computation.
-- Maintains modeling capacity across attention heads (unlike Multi-Query Attention).
-- Supports inference with latent KV cache updates per token.
-- No use of RoPE (Rotary Positional Embeddings) in this version — hence named `RopelessMLA`.
 
-## Architecture
 
-1. **Compression**:
-   - Input embeddings are projected into a lower-dimensional latent space using `W_dkv`.
+**Mixture of Experts (MoE)**
+ ![Mixture of Experts](https://github.com/user-attachments/assets/d7a4196d-753f-4aa5-9534-067c2a84c0ae)
+- Replaces dense feed-forward networks with sparse expert networks
+- Uses 8 experts but only activates 2 per token
+- Achieves 4x model capacity with only 25% computational overhead
+- Each expert specializes in different domains (numbers, language, code, etc.)
 
-2. **KV Caching**:
-   - Only the latent vector `C_KV = X @ W_dkv` is cached across time steps.
-   - This reduces cache size from `n_heads × d_head × 2` to just `latent_dim`.
+**Multi-Token Prediction (MTP)**
+ ![Multi Token prediction](https://github.com/user-attachments/assets/52051bc1-641e-44f4-af4e-63f64f133a64)
+- Predicts multiple tokens simultaneously during training
+- Improves training efficiency by providing more learning signals per forward pass
+- Enables faster inference through speculative decoding
 
-3. **Query Absorption**:
-   - Absorbed projection `W_q @ W_uk.T` is precomputed and used to form efficient query vectors.
+**Additional Components**
+- **RoPE (Rotary Positional Encoding)**: Better handling of longer sequences and relative positions
+- **RMS Norm**: Computationally simpler normalization without mean centering
+- **SwiGLU Activation**: Gated activation function for improved information flow control
 
-4. **Attention Computation**:
-   - Attention scores are computed as: `Q_absorbed @ latent_cache.T`
-   - Values are obtained via: `latent_cache @ W_uv`
-   - Final context is: `softmax(attn_scores) @ values`, followed by `W_o`.
 
-## Memory Efficiency
+Final Model Weights 
 
-Compared to MHA:
-- KV cache size is reduced by a factor of up to **4x–50x**, depending on `latent_dim` and number of heads.
-- No sharing of keys/values across heads ensures that MLA preserves high modeling capacity.
+https://huggingface.co/Mayank022/DeepSeek-V3-from-Scratch/tree/main
 
-## Usage
 
-```python
-from mla import RopelessMLA
+## Model Configuration
 
-model = RopelessMLA(d_model=512, n_heads=8, kv_latent_dim=256)
+<img width="1920" height="1080" alt="Model Summary" src="https://github.com/user-attachments/assets/7613bf81-55da-47ff-a31b-21fd46fbae19" />
 
-# x: (batch_size, seq_len, d_model)
-# kv_cache: latent KV cache from previous steps
-output, new_cache = model(x, kv_cache=cache, past_length=past_len)
+### Training Parameters
 
-````
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Model Parameters | 109,032,032 | Total trainable parameters |
+| Vocabulary Size | 50,257 | Number of unique tokens |
+| Block Size | 1,024 | Maximum sequence length |
+| Embedding Dimension | 512 | Hidden dimension size |
+| Number of Layers | 8 | Transformer blocks |
+| Attention Heads | 8 | Multi-head attention |
+| Batch Size | 32 | Training batch size |
+| Learning Rate | 0.0003 | Initial learning rate |
+| Min Learning Rate | 0.00001 | Minimum learning rate |
+| Warmup Steps | 2,000 | Learning rate warmup |
+| Max Iterations | 20,000 | Maximum training steps |
+| Dropout | 0.1 | Dropout probability |
+| Gradient Accumulation | 8 | Steps before optimizer update |
 
-## Structure
+### MoE Configuration
 
-* `RopelessMLA`: Main class implementing MLA attention mechanism.
-* Latent KV cache is updated dynamically with each token during inference.
-* Supports context accumulation, cache visualization, and attention heatmaps.
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Number of Experts | 8 | Total expert networks |
+| Experts per Token | 2 | Active experts per forward pass |
+| Expert Efficiency | 25% | Computation vs full dense model |
+| Capacity Multiplier | 4x | Model capacity increase |
 
-## Why MLA?
+### Attention Configuration
 
-| Method    | Cache Size          | Head Specialization | Performance |
-| --------- | ------------------- | ------------------- | ----------- |
-| MHA       | High (K+V per head) | ✓                   | High        |
-| MQA / GQA | Low                 | ✗ (shared heads)    | Lower       |
-| **MLA**   | **Low (latent)**    | ✓                   | **High**    |
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| KV LoRA Rank | 128 | Key-Value compression rank |
+| Q LoRA Rank | 192 | Query compression rank |
+| MTP Heads | 1 | Multi-token prediction heads |
 
-# DeepSeek-V3 Implementation
+## Dataset
 
-A clean implementation of DeepSeek-V3 with Multi-Head Latent Attention, Mixture of Experts, and Multi-Token Prediction.
+**Primary Dataset**: FineWeb-Edu (CC-MAIN-2024 subset)
 
-## Quick Start
+https://huggingface.co/spaces/HuggingFaceFW/blogpost-fineweb-v1
 
-### 1. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu 
 
-### 2. Prepare Dataset
-```bash
-python prepare_data.py
-```
-This downloads TinyStories dataset and creates `train.bin` and `validation.bin` files.
+- Total available records: 13 million
+- Used for training: 2 million records
+- Training tokens: 2.5 billion
+- Validation tokens: 132.8 million
+- Format: Educational web content optimized for language model training
 
-### 3. Train Model
-```bash
-python main.py train
-```
-This trains the model and saves `best_deepseek_v3.pt`.
+**Fallback Dataset**: TinyStories
 
-### 4. Generate Text
-```bash
-python run_inference.py
-```
-Edit prompts in `run_inference.py` to generate different text.
+https://huggingface.co/datasets/roneneldan/TinyStories
+
+- Used for initial prototyping and architecture validation
+- Simpler content for testing basic functionality
+
+Paper
+
+https://arxiv.org/pdf/2412.19437
+
 
 ## Project Structure
 
 ```
 DeepSeek-from-Scratch/
-├── models/           # Model architecture
-├── training/         # Training utilities  
-├── inference/        # Text generation
-├── main.py          # Main entry point
-├── run_inference.py # Simple inference script
-├── prepare_data.py  # Dataset preparation
-└── requirements.txt # Dependencies
+├── models/
+│   ├── attention.py          # Multi-Head Latent Attention implementation
+│   ├── config.py            # Model configuration parameters
+│   ├── layers.py            # RoPE, RMS Norm, SwiGLU implementations
+│   ├── model.py             # Main DeepSeek transformer block
+│   ├── moe.py               # Mixture of Experts implementation
+│   └── mtp.py               # Multi-Token Prediction implementation
+├── training/
+│   ├── data_loader.py       # Dataset loading and preprocessing
+│   └── trainer.py           # Training loop and optimization
+├── inference/
+│   ├── generator.py         # Text generation utilities
+│   └── run_inference.py     # Inference script
+├── notebooks/
+│   ├── Mixture_of_Experts_from_Scratch.ipynb
+│   ├── Multi_Head_Latent_Attention_From_Scratch.ipynb
+│   └── Multi_Token_Prediction_from_Scratch.ipynb
+├── prepare_data_fineweb.py  # FineWeb dataset preparation
+├── prepare_data_tiny_stories.py  # TinyStories dataset preparation
+└── main.py                  # Main training script
 ```
 
-## Usage Examples
+## Installation
 
-### Custom Text Generation
-Edit `run_inference.py`:
-```python
-my_prompts = [
-    "Your custom prompt here",
-    "Once upon a time",
-    "The future of AI is"
-]
+1. Clone the repository:
+```bash
+git clone https://github.com/username/DeepSeek-from-Scratch.git
+cd DeepSeek-from-Scratch
 ```
 
-### Training with Different Config
-Edit `training/trainer.py` to change model size, learning rate, etc.
+2. Create and activate virtual environment:
+```bash
+python -m venv deepseek_env
+source deepseek_env/bin/activate  # Linux/Mac
+# or
+deepseek_env\Scripts\activate     # Windows
+```
 
-## Model Features
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-- **Multi-Head Latent Attention**: 87.5% memory reduction
-- **Mixture of Experts**: Auxiliary-loss-free load balancing  
-- **Multi-Token Prediction**: Enhanced training
+## Training
 
-## Files Explained
+### Data Preparation
 
-- `prepare_data.py`: Downloads and tokenizes dataset
-- `train.bin`, `validation.bin`: Tokenized training data
-- `best_deepseek_v3.pt`: Trained model weights
-- `run_inference.py`: Simple text generation script
+Prepare the FineWeb-Edu dataset:
+```bash
+python prepare_data_fineweb.py
+```
+
+Or use TinyStories for testing:
+```bash
+python prepare_data_tiny_stories.py
+```
+
+### Start Training
+
+```bash
+python main.py train
+```
+
+Training configurations can be modified in `models/config.py`.
+
+### Monitoring
+
+Training progress is tracked using Weights & Biases:
+- Model checkpoints are saved automatically
+- Loss curves and metrics are logged in real-time
+- Training time: Approximately 7 hours on A100 80GB
+- Cost: $9.53 for full training run
+
+## Inference
+
+Update the test prompts in `inference/run_inference.py` and run:
+
+```bash
+python inference/run_inference.py
+```
+
+The model will generate text completions based on your input prompts.
+
+## Key Implementation Details
+
+### Multi-Head Latent Attention
+
+Traditional multi-head attention stores separate key-value pairs for each head, leading to significant memory overhead. MLA compresses these into shared latent representations:
+
+- Memory reduction: Proportional to number of attention heads
+- Performance maintenance: Retains expressiveness of full multi-head attention
+- Scalability: Enables training with longer sequences
+
+### Mixture of Experts
+
+Instead of processing every token through the same large feed-forward network, MoE routes tokens to specialized experts:
+
+- Sparse activation: Only 25% of the model is active per token
+- Specialization: Different experts learn different types of patterns
+- Efficiency: 4x capacity increase with minimal computational overhead
+
+### Multi-Token Prediction
+
+Enhances training by predicting multiple future tokens simultaneously:
+
+- Training efficiency: More learning signals per forward pass
+- Inference optimization: Enables speculative decoding techniques
+- Performance improvement: Better gradient flow during training
+
+## Performance Metrics
+
+### Training Results
+
+- **Final Loss**: Achieved convergence after 20,000 iterations
+- **Training Time**: 7 hours 1 minute on NVIDIA A100 80GB
+- **Memory Usage**: Efficient memory utilization with MLA compression
+- **Convergence**: Stable training with proper learning rate scheduling
+
+### Model Efficiency
+
+- **Parameter Efficiency**: 109M parameters with MoE sparse activation
+- **Memory Efficiency**: Reduced KV cache through latent attention
+- **Computational Efficiency**: 25% active parameters per forward pass
+
+## Technical Challenges Addressed
+
+### Dataset Selection
+
+The choice of dataset was critical for demonstrating the architecture's benefits:
+
+- **TinyStories**: Too simple, didn't justify advanced architecture components
+- **Raw Web Data**: Too complex for resource-constrained training
+- **FineWeb-Edu**: Perfect balance of complexity and educational content quality
+
+### Architecture Decisions
+
+Careful consideration was given to which components to include:
+
+- **Essential Components**: MLA, MoE, MTP all included for comprehensive implementation
+- **Training Constraints**: Context length limited to 1024 tokens due to compute budget
+- **Resource Management**: Balanced model size with available GPU memory
+
+## Future Enhancements
+
+### Planned Improvements
+
+- **Dataset Expansion**: Experiment with larger subsets of FineWeb-Edu
+- **Evaluation Metrics**: Implement comprehensive benchmarking suite
+- **Architecture Extensions**: Additional transformer innovations and optimizations
+- **Scaling Studies**: Analysis of performance across different model sizes
+
+
